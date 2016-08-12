@@ -304,8 +304,8 @@ class PFFmpegOutputStreamHandler : public PFFmpegStreamHandler
             // Allocate frames: source frame is the one that we copy data from incoming PImage's
             // internal buffer. This frame is fed into sws_scale() and its output is stored in
             // scaled frame. None of these two are the final encoded frame yet.
-            QScopedPointer<AVFrame, AVFrameDeleter> sourceFrame(av_frame_alloc());
-            QScopedPointer<AVFrame, AVFrameDeleter> scaledFrame(av_frame_alloc());
+            std::unique_ptr<AVFrame, void(*)(AVFrame*)> sourceFrame(new AVFrame, AVFrameDeleter);
+            std::unique_ptr<AVFrame, void(*)(AVFrame*)> scaledFrame(new AVFrame, AVFrameDeleter);
 
             if (!sourceFrame || !scaledFrame)
             {
@@ -344,7 +344,7 @@ class PFFmpegOutputStreamHandler : public PFFmpegStreamHandler
 
             // Perform the encoding
             int gotFrame; // Set by encoder if there is an encoded frame
-            if ((result = avcodec_encode_video2(m_codecContext, encodedPacket, scaledFrame.data(), &gotFrame)) < 0)
+            if ((result = avcodec_encode_video2(m_codecContext, encodedPacket, scaledFrame.get(), &gotFrame)) < 0)
             {
                 return PResult::Error(PString("Cannot encode frame \"%1\": %2").Arg(image.ToString()).Arg(FFmpegUtility::GetErrorString(result)));
             }

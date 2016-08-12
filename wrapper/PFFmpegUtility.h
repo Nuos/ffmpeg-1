@@ -16,7 +16,7 @@
 #include <PLog.h>
 using namespace papillon;
 
-#include <QtCore/qscopedpointer.h>
+#include <memory>
 
 // FFmpeg includes
 extern "C"
@@ -31,15 +31,12 @@ extern "C"
 
 #define FFMPEG_DEBUG 0
 
-// This is a custom deleter to have QScopedPointer work for AVFrame* type
-struct AVFrameDeleter
+// A custom deleter to get help from std::unique_ptr
+void AVFrameDeleter(AVFrame* frame)
 {
-    static inline void cleanup(AVFrame* frame)
-    {
-        av_freep(frame->data);
-        av_frame_free(&frame);
-    }
-};
+    av_freep(frame->data);
+    av_frame_free(&frame);
+}
 
 /**
  * @file PFFmpegUtility.h
