@@ -21,8 +21,8 @@ namespace papillon
     const PString PRODUCT_VERSION      = "1.0";
     const PGuid   PRODUCT_GUID("{7BA82022-E5DA-4898-84A4-F772F549F35E}");
 
-    const int32   DEFAULT_WIDTH        = 720;
-    const int32   DEFAULT_HEIGHT       = 576;
+    const int32   DEFAULT_WIDTH        = PSizei::C_4CIF.GetWidth();
+    const int32   DEFAULT_HEIGHT       = PSizei::C_4CIF.GetHeight();
     const double  DEFAULT_FPS          = 24.0;
     const PString DEFAULT_CODEC_FOURCC = "H264";
 
@@ -101,14 +101,30 @@ namespace papillon
 
             // Retrieve requested dimensions from the query string
             int width, height;
-            if (!m_uri.GetQueryValue("width", width) || !m_uri.GetQueryValue("height", height))
+            PString resolutionParameter;
+            // Look for a 'resolution' parameter first
+            if (m_uri.GetQueryValue("resolution", resolutionParameter))
+            {
+                // Note that this value might have been like 'resolution=4cif' at
+                // the beginning but we expect it to be translated to numeric values
+                // in PPluginManager
+                PSizei::FromString(resolutionParameter, m_outputDimensions);
+                P_LOG_DEBUG << "'resolution' parameter was given, translated it to " << m_outputDimensions.ToStringShort();
+            }
+            // then 'widht' AND 'height' if 'resolution' wasn't given
+            else if (!m_uri.GetQueryValue("width", width) || !m_uri.GetQueryValue("height", height))
             {
                 m_outputDimensions.SetWidth(DEFAULT_WIDTH);
                 m_outputDimensions.SetHeight(DEFAULT_HEIGHT);
                 P_LOG_WARNING << "Query strings 'width' or 'height', or both are missing, they are defaulted to " << m_outputDimensions.ToString();
+                // fixme We should perhaps initialise these values with source frame resolution, i.e. PInputVideoStream 
+                // that feeds us. Yet we don't know source frame resolution until the first call to PutImage() is made,
+                // and when that happens PFFmpegOutputStreamHandler::CreateStream() will already have been called with 
+                // the dimensions calculated here.. Perhaps it should be possible to change the output frame dimensions on the go
             }
             else
             {
+                P_LOG_DEBUG << "Both 'widht' and 'height' parameters are given, just clamping them to 16x4096";
                 m_outputDimensions.SetWidth(width);
                 m_outputDimensions.SetHeight(height);
                 m_outputDimensions.Clamp(16, 4096);
